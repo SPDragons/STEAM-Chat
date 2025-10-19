@@ -2,54 +2,61 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>STEAM Class Chat</title>
+  <title>STEAM Class Chat (Local Login)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; max-width: 900px; }
-    #loginBtn, #logoutBtn { margin: 5px; }
-    #rooms, #chatContainer, #createRoomUI { margin-top: 20px; }
+    #loginScreen, #chatUI { display:none; }
     #chatBox { height: 420px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background:#fafafa; }
-    #messageInput { width: 78%; padding: 8px; }
-    #sendBtn { padding: 8px 12px; }
-    .message { margin-bottom: 8px; padding:4px 6px; border-radius:4px; }
+    .message { margin-bottom:8px; padding:4px 6px; border-radius:4px; }
     .own { background:#e6f7ff; }
-    .meta { color: gray; font-size:0.85em; margin-left:8px; }
-    .smallBtn { padding:4px 6px; margin-left:6px; font-size:0.85em; }
+    .meta { color:gray; font-size:0.85em; margin-left:8px; }
+    .smallBtn { padding:4px 6px; font-size:0.85em; margin-left:6px; }
   </style>
 </head>
 <body>
-  <h2>STEAM Chat Room</h2>
-  <button id="loginBtn">Sign in with Google</button>
-  <button id="logoutBtn" style="display:none;">Sign out</button>
-  <span id="signedInUser" style="margin-left:12px;"></span>
-  <p id="accessDenied" style="color:red; display:none;">Access Denied: You are not authorized to use this chat.</p>
+  <h2>STEAM Chat</h2>
 
-  <div id="rooms" style="display:none;">
-    <h3>Your Rooms</h3>
-    <select id="roomSelect" style="width:60%;"></select>
-    <button id="createRoomBtn">Create Private Room</button>
+  <!-- ======== Custom Login Screen ======== -->
+  <div id="loginScreen">
+    <h3>Sign In</h3>
+    <p>Enter your full name and class password.</p>
+    <input id="username" placeholder="First Last" style="width:60%;padding:8px;"><br><br>
+    <input id="password" type="password" placeholder="Class Password" style="width:60%;padding:8px;"><br><br>
+    <button id="loginBtn">Login</button>
+    <p id="loginError" style="color:red;"></p>
   </div>
 
-  <div id="chatContainer" style="display:none;">
-    <h3 id="roomTitle">Room</h3>
-    <div id="chatBox"></div>
-    <div style="margin-top:8px;">
-      <input id="messageInput" placeholder="Type your message..." />
-      <button id="sendBtn">Send</button>
+  <!-- ======== Main Chat UI ======== -->
+  <div id="chatUI">
+    <p>Signed in as: <strong id="currentUser"></strong>
+      <button id="logoutBtn" class="smallBtn">Logout</button></p>
+    <div id="rooms">
+      <h3>Your Rooms</h3>
+      <select id="roomSelect" style="width:60%;"></select>
+      <button id="createRoomBtn">Create Private Room</button>
+    </div>
+
+    <div id="chatContainer" style="margin-top:20px;">
+      <h3 id="roomTitle">Room</h3>
+      <div id="chatBox"></div>
+      <div style="margin-top:8px;">
+        <input id="messageInput" placeholder="Type your message..." style="width:78%;padding:8px;">
+        <button id="sendBtn">Send</button>
+      </div>
     </div>
   </div>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <script>
-    // ================= Firebase Config =================
+    // ======= Firebase Config =======
     const firebaseConfig = {
       apiKey: "AIzaSyC3q0jqh2zfzKXwHyA6wjPe_dL5t5CGds0",
       authDomain: "steam-chat-82c10.firebaseapp.com",
       projectId: "steam-chat-82c10",
-      storageBucket: "steam-chat-82c10.appspot.com", // ✅ fixed
+      storageBucket: "steam-chat-82c10.firebasestorage.app",
       messagingSenderId: "527558016185",
       appId: "1:527558016185:web:33473cb2098cad5e812f68",
       measurementId: "G-Z6ENYE5ES8"
@@ -57,130 +64,129 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const auth = firebase.auth();
 
-    // ================= Student and Manager Lists =================
+    // ======= Allowed Users =======
     const students = [
-      { name: "Brycen Gallardo", email: "brycen.gallardo@students.rsd.edu" },
-      { name: "Liam Pendergast", email: "liam.pendergast@students.rsd.edu" },
-      { name: "Samuel Prather", email: "samuel.prather@students.rsd.edu" },
-      { name: "Zayden Tenney", email: "zayden.tenney@students.rsd.edu" },
-      { name: "Ammon Rhoten", email: "ammon.rhoten@students.rsd.edu" },
-      { name: "Arthur Hagge", email: "arthur.hagge@students.rsd.edu" },
-      { name: "Caleb Clark", email: "caleb.clark@students.rsd.edu" },
-      { name: "Charlotte Young", email: "charlotte.young2@students.rsd.edu" },
-      { name: "David Graham", email: "david.graham01@students.rsd.edu" },
-      { name: "Easton Aker", email: "easton.aker@students.rsd.edu" },
-      { name: "Elijah Conti", email: "elijah.conti@students.rsd.edu" },
-      { name: "Emelia Hulse", email: "emelia.hulse@students.rsd.edu" },
-      { name: "Ethan Hawkins RSD", email: "ethan.hawkins@students.rsd.edu" },
-      { name: "Ethan Hawkins LC", email: "ethan.hawkins@libertychristian.net" },
-      { name: "Fox Eisinger", email: "fox.eisinger@students.rsd.edu" },
-      { name: "Hans Holland", email: "hans.holland@students.rsd.edu" },
-      { name: "Jackson Holcombe", email: "jackson.holcombe@students.rsd.edu" },
-      { name: "Joseph Brown", email: "joseph.brown@students.rsd.edu" },
-      { name: "Kate Russell", email: "kate.russell@students.rsd.edu" },
-      { name: "Leah Wilson", email: "leah.wilson@students.rsd.edu" },
-      { name: "Lincoln LaMarr", email: "lincoln.lamarr@students.rsd.edu" },
-      { name: "Spencer Nielson", email: "spencer.nielson@students.rsd.edu" },
-      { name: "Torin Castle", email: "torin.castle@students.rsd.edu" },
-      { name: "Victor Peters", email: "victor.peters@students.rsd.edu" }
+      { name: "Brycen Gallardo" },
+      { name: "Liam Pendergast" },
+      { name: "Samuel Prather" },
+      { name: "Zayden Tenney" },
+      { name: "Ammon Rhoten" },
+      { name: "Arthur Hagge" },
+      { name: "Caleb Clark" },
+      { name: "Charlotte Young" },
+      { name: "David Graham" },
+      { name: "Easton Aker" },
+      { name: "Elijah Conti" },
+      { name: "Emelia Hulse" },
+      { name: "Ethan Hawkins" },
+      { name: "Fox Eisinger" },
+      { name: "Hans Holland" },
+      { name: "Jackson Holcombe" },
+      { name: "Joseph Brown" },
+      { name: "Kate Russell" },
+      { name: "Leah Wilson" },
+      { name: "Lincoln LaMarr" },
+      { name: "Spencer Nielson" },
+      { name: "Torin Castle" },
+      { name: "Victor Peters" }
     ];
 
+    // Managers (also students)
     const managers = [
-      "brycen.gallardo@students.rsd.edu",
-      "liam.pendergast@students.rsd.edu",
-      "samuel.prather@students.rsd.edu",
-      "zayden.tenney@students.rsd.edu"
+      "Brycen Gallardo", "Liam Pendergast", "Samuel Prather", "Zayden Tenney"
     ];
 
-    // ================= UI Elements =================
+    const CLASS_PASSWORD = "STEAM2024"; // Shared password (change this!)
+
+    // ======= UI Elements =======
+    const loginScreen = document.getElementById("loginScreen");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
     const loginBtn = document.getElementById("loginBtn");
+    const loginError = document.getElementById("loginError");
+    const chatUI = document.getElementById("chatUI");
+    const currentUserEl = document.getElementById("currentUser");
     const logoutBtn = document.getElementById("logoutBtn");
-    const signedInUser = document.getElementById("signedInUser");
-    const accessDenied = document.getElementById("accessDenied");
-    const roomsDiv = document.getElementById("rooms");
     const roomSelect = document.getElementById("roomSelect");
     const createRoomBtn = document.getElementById("createRoomBtn");
-    const chatContainer = document.getElementById("chatContainer");
     const chatBox = document.getElementById("chatBox");
+    const roomTitle = document.getElementById("roomTitle");
     const messageInput = document.getElementById("messageInput");
     const sendBtn = document.getElementById("sendBtn");
-    const roomTitle = document.getElementById("roomTitle");
 
     let currentUser = null;
     let currentRoomId = null;
     let unsubscribeMessages = null;
     let isManager = false;
 
-    // ================= Auth =================
-    loginBtn.onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    logoutBtn.onclick = () => auth.signOut();
+    // ======= Login Logic =======
+    function showLogin() {
+      loginScreen.style.display = "block";
+      chatUI.style.display = "none";
+    }
 
+    function showChat() {
+      loginScreen.style.display = "none";
+      chatUI.style.display = "block";
+    }
+
+    function checkLocalLogin() {
+      const saved = localStorage.getItem("steamUser");
+      if (saved) {
+        currentUser = saved;
+        isManager = managers.includes(currentUser);
+        currentUserEl.textContent = currentUser + (isManager ? " (Manager)" : "");
+        showChat();
+        ensurePublicRoom().then(loadRooms);
+      } else {
+        showLogin();
+      }
+    }
+
+    loginBtn.onclick = () => {
+      const name = usernameInput.value.trim();
+      const pass = passwordInput.value.trim();
+      if (!name || !pass) return loginError.textContent = "Please enter both fields.";
+      const allowed = students.map(s => s.name.toLowerCase());
+      if (!allowed.includes(name.toLowerCase())) return loginError.textContent = "Name not recognized.";
+      if (pass !== CLASS_PASSWORD) return loginError.textContent = "Incorrect password.";
+      localStorage.setItem("steamUser", name);
+      currentUser = name;
+      isManager = managers.includes(name);
+      currentUserEl.textContent = currentUser + (isManager ? " (Manager)" : "");
+      usernameInput.value = passwordInput.value = "";
+      loginError.textContent = "";
+      showChat();
+      ensurePublicRoom().then(loadRooms);
+    };
+
+    logoutBtn.onclick = () => {
+      localStorage.removeItem("steamUser");
+      if (unsubscribeMessages) unsubscribeMessages();
+      currentUser = null;
+      showLogin();
+    };
+
+    // ======= Firebase Chat Logic =======
     async function ensurePublicRoom() {
       const q = await db.collection("rooms").where("isPublic", "==", true).limit(1).get();
       if (q.empty) {
-        const allEmails = students.map(s => s.email);
+        const all = students.map(s => s.name);
         await db.collection("rooms").add({
           name: "Public Room",
-          members: allEmails,
+          members: all,
           isPublic: true,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
       }
     }
 
-    auth.onAuthStateChanged(async user => {
-      if (unsubscribeMessages) { // ✅ cleanup listener on logout
-        unsubscribeMessages();
-        unsubscribeMessages = null;
-      }
-
-      if (user) {
-        currentUser = user;
-        signedInUser.textContent = "Signed in as: " + user.email;
-        loginBtn.style.display = "none";
-        logoutBtn.style.display = "inline";
-
-        const allowedEmails = students.map(s => s.email);
-        isManager = managers.includes(user.email);
-
-        if (!allowedEmails.includes(user.email) && !isManager) {
-          accessDenied.style.display = "block";
-          roomsDiv.style.display = "none";
-          chatContainer.style.display = "none";
-          return;
-        }
-
-        accessDenied.style.display = "none";
-        await ensurePublicRoom(); // ✅ moved here
-        roomsDiv.style.display = "block";
-        chatContainer.style.display = "block";
-        await loadRooms();
-      } else {
-        currentUser = null;
-        signedInUser.textContent = "";
-        loginBtn.style.display = "inline";
-        logoutBtn.style.display = "none";
-        roomsDiv.style.display = "none";
-        chatContainer.style.display = "none";
-      }
-    });
-
-    // ================= Load Rooms =================
     async function loadRooms() {
       roomSelect.innerHTML = "";
       const snapshot = isManager
         ? await db.collection("rooms").orderBy("createdAt").get()
-        : await db.collection("rooms").where("members", "array-contains", currentUser.email).get();
-
-      if (snapshot.empty) {
-        const opt = document.createElement("option");
-        opt.textContent = "No rooms available";
-        roomSelect.appendChild(opt);
-        return;
-      }
-
+        : await db.collection("rooms").where("members", "array-contains", currentUser).get();
       snapshot.forEach(doc => {
         const data = doc.data();
         const opt = document.createElement("option");
@@ -188,80 +194,59 @@
         opt.textContent = data.name + (data.isPublic ? " (Public)" : "");
         roomSelect.appendChild(opt);
       });
-
-      currentRoomId = roomSelect.options[0].value;
-      const doc = await db.collection("rooms").doc(currentRoomId).get();
-      roomTitle.textContent = doc.data().name;
-      if (unsubscribeMessages) unsubscribeMessages();
-      listenMessages(currentRoomId);
+      if (roomSelect.options.length > 0) {
+        currentRoomId = roomSelect.options[0].value;
+        const doc = await db.collection("rooms").doc(currentRoomId).get();
+        roomTitle.textContent = doc.data().name;
+        if (unsubscribeMessages) unsubscribeMessages();
+        listenMessages(currentRoomId);
+      }
     }
 
-    roomSelect.addEventListener("change", async e => {
-      currentRoomId = e.target.value;
+    roomSelect.onchange = async () => {
+      currentRoomId = roomSelect.value;
       const doc = await db.collection("rooms").doc(currentRoomId).get();
       roomTitle.textContent = doc.data().name;
       if (unsubscribeMessages) unsubscribeMessages();
       listenMessages(currentRoomId);
-    });
+    };
 
     function listenMessages(roomId) {
-      chatBox.innerHTML = "";
       unsubscribeMessages = db.collection("messages")
-        .where("roomId", "==", roomId)
+        .where("roomId","==",roomId)
         .orderBy("timestamp")
         .onSnapshot(snapshot => {
-          snapshot.docChanges().forEach(change => {
-            if (change.type === "added") appendMessage(change.doc);
-            else if (change.type === "removed") {
-              const msgDiv = document.getElementById(change.doc.id);
-              if (msgDiv) msgDiv.remove();
+          chatBox.innerHTML = "";
+          snapshot.forEach(doc => {
+            const m = doc.data();
+            const div = document.createElement("div");
+            div.className = "message " + (m.sender === currentUser ? "own" : "");
+            const time = m.timestamp ? m.timestamp.toDate().toLocaleString() : "";
+            div.innerHTML = `<strong>${escapeHtml(m.sender)}</strong>: ${escapeHtml(m.text)} <span class="meta">${time}</span>`;
+            if (isManager) {
+              const del = document.createElement("button");
+              del.textContent = "Delete";
+              del.className = "smallBtn";
+              del.onclick = () => db.collection("messages").doc(doc.id).delete();
+              div.appendChild(del);
             }
+            chatBox.appendChild(div);
           });
+          chatBox.scrollTop = chatBox.scrollHeight;
         });
     }
 
-    function appendMessage(doc) {
-      const m = doc.data();
-      const div = document.createElement("div");
-      div.id = doc.id;
-      div.className = "message " + (m.senderEmail === currentUser.email ? "own" : "");
-      const time = m.timestamp ? m.timestamp.toDate().toLocaleString() : "";
-      div.innerHTML = `<strong>${escapeHtml(m.senderName)}</strong>: ${escapeHtml(m.text)} <span class="meta">${escapeHtml(time)}</span>`;
-      if (isManager) {
-        const del = document.createElement("button");
-        del.textContent = "Delete";
-        del.className = "smallBtn";
-        del.onclick = async () => {
-          if (confirm("Delete this message?")) await db.collection("messages").doc(doc.id).delete();
-        };
-        div.appendChild(del);
-      }
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    sendBtn.onclick = async () => sendMessage();
-
-    messageInput.addEventListener("keypress", e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    async function sendMessage() {
+    sendBtn.onclick = async () => {
       const text = messageInput.value.trim();
       if (!text || !currentRoomId) return;
       await db.collection("messages").add({
-        text,
         roomId: currentRoomId,
-        senderName: currentUser.displayName || "Anonymous",
-        senderEmail: currentUser.email,
+        sender: currentUser,
+        text,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
       messageInput.value = "";
-      messageInput.focus();
-    }
+    };
 
     createRoomBtn.onclick = () => {
       const roomName = prompt("Enter private room name:");
@@ -275,7 +260,7 @@
         label.style.display = "block";
         const cb = document.createElement("input");
         cb.type = "checkbox";
-        cb.value = s.email;
+        cb.value = s.name;
         label.appendChild(cb);
         label.appendChild(document.createTextNode(" " + s.name));
         list.appendChild(label);
@@ -290,9 +275,9 @@
       document.body.appendChild(container);
       cancelBtn.onclick = () => document.body.removeChild(container);
       createBtn.onclick = async () => {
-        const selected = Array.from(container.querySelectorAll("input[type=checkbox]:checked")).map(cb => cb.value);
-        if (!selected.includes(currentUser.email)) selected.push(currentUser.email);
-        if (selected.length === 0) { alert("Select at least one member"); return; }
+        const selected = Array.from(container.querySelectorAll("input:checked")).map(cb => cb.value);
+        if (!selected.includes(currentUser)) selected.push(currentUser);
+        if (selected.length === 0) return alert("Select at least one member.");
         await db.collection("rooms").add({
           name: roomName,
           members: selected,
@@ -300,13 +285,16 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         document.body.removeChild(container);
-        await loadRooms();
+        loadRooms();
       };
     };
 
-    function escapeHtml(unsafe) {
-      return unsafe.replace(/[&<"'>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));
+    function escapeHtml(t) {
+      return t.replace(/[&<"'>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
     }
+
+    // Run check
+    checkLocalLogin();
   </script>
 </body>
 </html>
