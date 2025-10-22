@@ -5,115 +5,44 @@
   <meta charset="utf-8" />
   <title>STEAM Class Chat (Secure Login)</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      max-width: 900px;
-    }
-    #loginScreen, #chatUI, #setupPasswordUI, #changePasswordUI, #resetPasswordUI {
-      display:none;
-    }
-    #chatBox {
-      height: 420px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      padding: 10px;
-      background:#fafafa;
-    }
-    .message {
-      margin-bottom:8px;
-      padding:4px 6px;
-      border-radius:4px;
-    }
-    .own {
-      background:#e6f7ff;
-    }
-    .meta {
-      color:gray;
-      font-size:0.85em;
-      margin-left:8px;
-    }
-    .smallBtn {
-      padding:4px 6px;
-      font-size:0.85em;
-      margin-left:6px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 900px; }
+    #loginScreen, #chatUI, #setupPasswordUI, #changePasswordUI, #resetPasswordUI { display:none; }
+    #chatBox { height: 420px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background:#fafafa; }
+    .message { margin-bottom:8px; padding:4px 6px; border-radius:4px; }
+    .own { background:#e6f7ff; }
+    .meta { color:gray; font-size:0.85em; margin-left:8px; }
+    .smallBtn { padding:4px 6px; font-size:0.85em; margin-left:6px; }
     #modalOverlay {
-      position: fixed;
-      top:0;
-      left:0;
-      width:100%;
-      height:100%;
-      background: rgba(0,0,0,0.5);
-      display:none;
-      justify-content:center;
-      align-items:center;
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center;
     }
     #modalBox {
-      background:white;
-      padding:20px;
-      border-radius:8px;
-      width:90%;
-      max-width:500px;
+      background:white; padding:20px; border-radius:8px; width:90%; max-width:500px;
       box-shadow:0 4px 12px rgba(0,0,0,0.2);
     }
-    .unread-indicator {
-      background-color: red;
-      color: white;
-      border-radius: 50%;
-      padding: 2px 6px;
-      font-size: 0.75em;
-      margin-left: 6px;
+    .unreadBadge {
+      background:red;
+      color:white;
+      border-radius:50%;
+      padding:2px 6px;
+      font-size:0.75em;
+      margin-left:6px;
     }
   </style>
 </head>
 <body>
   <h2>STEAM Chat</h2>
-  <div id="loginScreen">
-    <h3>Sign In</h3>
-    <p>Enter your name and password.</p>
-    <input id="username" placeholder="First Last" style="width:60%;padding:8px;"><br><br>
-    <input id="password" type="password" placeholder="Password" style="width:60%;padding:8px;"><br><br>
-    <button id="loginBtn">Login</button>
-    <button id="forgotBtn" style="margin-left:10px;">Forgot Password?</button>
-    <p id="loginError" style="color:red;"></p>
-  </div>
-
-  <div id="setupPasswordUI">
-    <h3>Create a New Password</h3>
-    <p>Welcome! Set a password for your account.</p>
-    <input id="newPassword" type="password" placeholder="Enter new password" style="width:60%;padding:8px;"><br><br>
-    <button id="saveNewPasswordBtn">Save Password</button>
-    <p id="setupError" style="color:red;"></p>
-  </div>
-
-  <div id="changePasswordUI">
-    <h3>Change Your Password</h3>
-    <p>Enter your current password and new password.</p>
-    <input id="currentPass" type="password" placeholder="Current password" style="width:60%;padding:8px;"><br><br>
-    <input id="newPassChange" type="password" placeholder="New password" style="width:60%;padding:8px;"><br><br>
-    <button id="changePassBtn">Change Password</button>
-    <button id="cancelChangeBtn">Cancel</button>
-    <p id="changeError" style="color:red;"></p>
-  </div>
-
   <div id="chatUI">
     <p>Signed in as: <strong id="currentUser"></strong>
       <button id="logoutBtn" class="smallBtn">Logout</button>
       <button id="changePasswordLink" class="smallBtn">Change Password</button>
     </p>
-    <div id="resetPasswordUI">
-      <h4>Manager Controls</h4>
-      <input id="resetUser" placeholder="User to reset" style="width:50%;padding:6px;">
-      <button id="resetPassBtn">Reset User Password</button>
-      <p id="resetMsg" style="color:green;"></p>
-    </div>
     <div id="rooms">
-      <h3>Your Rooms <span id="roomsUnreadIndicator" class="unread-indicator" style="display:none;"></span></h3>
+      <h3>Your Rooms <span id="roomsUnreadBadge" class="unreadBadge" style="display:none;"></span></h3>
       <select id="roomSelect" style="width:60%;"></select>
       <button id="createRoomBtn">Create Private Room</button>
-      <button id="viewMembersBtn">View Members</button>
       <button id="deleteRoomBtn" style="display:none;">Delete Room</button>
+      <button id="viewMembersBtn">View Members</button>
     </div>
     <div id="chatContainer" style="margin-top:20px;">
       <h3 id="roomTitle">Room</h3>
@@ -125,22 +54,11 @@
     </div>
   </div>
 
-  <div id="modalOverlay">
-    <div id="modalBox">
-      <h3>Create Private Room</h3>
-      <label>Room Name:</label>
-      <input id="newRoomName" style="width:100%;padding:6px;"><br><br>
-      <div id="studentList" style="max-height:200px;overflow-y:auto;border:1px solid #ccc;padding:6px;"></div><br>
-      <button id="confirmCreateRoom">Create</button>
-      <button id="cancelCreateRoom">Cancel</button>
-    </div>
-  </div>
-
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <script>
-    // Firebase config and initialization
     const firebaseConfig = {
       apiKey: "AIzaSyC3q0jqh2zfzKXwHyA6wjPe_dL5t5CGds0",
       authDomain: "steam-chat-82c10.firebaseapp.com",
@@ -153,15 +71,110 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // The rest of the JavaScript logic including:
-    // - User authentication
-    // - Room loading and message listening
-    // - Unread message tracking via 'readBy' field
-    // - Displaying unread indicators
-    // - Manager controls for deleting rooms
-    // - Viewing room members
+    const currentUserEl = document.getElementById("currentUser");
+    const roomSelect = document.getElementById("roomSelect");
+    const roomTitle = document.getElementById("roomTitle");
+    const chatBox = document.getElementById("chatBox");
+    const messageInput = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const roomsUnreadBadge = document.getElementById("roomsUnreadBadge");
+    const deleteRoomBtn = document.getElementById("deleteRoomBtn");
+    const viewMembersBtn = document.getElementById("viewMembersBtn");
 
-    // Due to size constraints, the full JavaScript logic will be continued in a separate file or section.
+    let currentUser = "Brycen Gallardo"; // Simulated login
+    let currentRoomId = null;
+    let isManager = true;
+    let unsubscribeMessages = null;
+
+    currentUserEl.textContent = currentUser + (isManager ? " (Manager)" : "");
+
+    async function loadRooms() {
+      roomSelect.innerHTML = "";
+      let snapshot = await db.collection("rooms").where("members", "array-contains", currentUser).get();
+      let totalUnread = 0;
+      for (let doc of snapshot.docs) {
+        let data = doc.data();
+        let roomId = doc.id;
+        let unreadSnap = await db.collection("messages")
+          .where("roomId", "==", roomId)
+          .where("readBy", "not-in", [currentUser])
+          .get();
+        let unreadCount = unreadSnap.docs.filter(d => !d.data().readBy?.includes(currentUser)).length;
+        totalUnread += unreadCount;
+        let opt = document.createElement("option");
+        opt.value = roomId;
+        opt.textContent = data.name + (unreadCount > 0 ? ` (${unreadCount})` : "");
+        roomSelect.appendChild(opt);
+      }
+      roomsUnreadBadge.style.display = totalUnread > 0 ? "inline-block" : "none";
+      roomsUnreadBadge.textContent = totalUnread;
+      if (roomSelect.options.length > 0) {
+        roomSelect.selectedIndex = 0;
+        currentRoomId = roomSelect.value;
+        loadRoom(currentRoomId);
+      }
+    }
+
+    async function loadRoom(roomId) {
+      let doc = await db.collection("rooms").doc(roomId).get();
+      roomTitle.textContent = doc.data().name;
+      if (unsubscribeMessages) unsubscribeMessages();
+      unsubscribeMessages = db.collection("messages")
+        .where("roomId", "==", roomId)
+        .orderBy("timestamp")
+        .onSnapshot(snapshot => {
+          chatBox.innerHTML = "";
+          snapshot.forEach(doc => {
+            let m = doc.data();
+            let div = document.createElement("div");
+            div.className = "message " + (m.sender === currentUser ? "own" : "");
+            let time = m.timestamp ? m.timestamp.toDate().toLocaleString() : "";
+            div.innerHTML = `<strong>${m.sender}</strong>: ${m.text} <span class="meta">${time}</span>`;
+            chatBox.appendChild(div);
+            if (!m.readBy?.includes(currentUser)) {
+              doc.ref.update({ readBy: firebase.firestore.FieldValue.arrayUnion(currentUser) });
+            }
+          });
+          chatBox.scrollTop = chatBox.scrollHeight;
+        });
+    }
+
+    roomSelect.onchange = () => {
+      currentRoomId = roomSelect.value;
+      loadRoom(currentRoomId);
+    };
+
+    sendBtn.onclick = async () => {
+      let text = messageInput.value.trim();
+      if (!text || !currentRoomId) return;
+      await db.collection("messages").add({
+        roomId: currentRoomId,
+        sender: currentUser,
+        text,
+        readBy: [currentUser],
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      messageInput.value = "";
+    };
+
+    deleteRoomBtn.onclick = async () => {
+      if (!currentRoomId || !confirm("Delete this room?")) return;
+      await db.collection("rooms").doc(currentRoomId).delete();
+      let messages = await db.collection("messages").where("roomId", "==", currentRoomId).get();
+      messages.forEach(doc => doc.ref.delete());
+      loadRooms();
+    };
+
+    viewMembersBtn.onclick = async () => {
+      if (!currentRoomId) return;
+      let doc = await db.collection("rooms").doc(currentRoomId).get();
+      let members = doc.data().members;
+      alert("Room Members:\n" + members.join("\n"));
+    };
+
+    if (isManager) deleteRoomBtn.style.display = "inline-block";
+
+    loadRooms();
   </script>
 </body>
 </html>
