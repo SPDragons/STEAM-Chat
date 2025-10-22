@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>STEAM Class Chat (Local Login)</title>
+  <title>STEAM Class Chat (Secure Login)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; max-width: 900px; }
     #loginScreen, #chatUI { display:none; }
@@ -11,12 +11,22 @@
     .own { background:#e6f7ff; }
     .meta { color:gray; font-size:0.85em; margin-left:8px; }
     .smallBtn { padding:4px 6px; font-size:0.85em; margin-left:6px; }
+
+    /* Modal for private room creation */
+    #modalOverlay {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center;
+    }
+    #modalBox {
+      background:white; padding:20px; border-radius:8px; width:90%; max-width:500px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 <body>
   <h2>STEAM Chat</h2>
 
-  <!-- ======== Custom Login Screen ======== -->
+  <!-- ======== Login Screen ======== -->
   <div id="loginScreen">
     <h3>Sign In</h3>
     <p>Enter your full name and class password.</p>
@@ -26,10 +36,11 @@
     <p id="loginError" style="color:red;"></p>
   </div>
 
-  <!-- ======== Main Chat UI ======== -->
+  <!-- ======== Chat UI ======== -->
   <div id="chatUI">
     <p>Signed in as: <strong id="currentUser"></strong>
       <button id="logoutBtn" class="smallBtn">Logout</button></p>
+
     <div id="rooms">
       <h3>Your Rooms</h3>
       <select id="roomSelect" style="width:60%;"></select>
@@ -46,7 +57,19 @@
     </div>
   </div>
 
-  <!-- Firebase SDKs -->
+  <!-- ======== Private Room Modal ======== -->
+  <div id="modalOverlay">
+    <div id="modalBox">
+      <h3>Create Private Room</h3>
+      <label>Room Name:</label>
+      <input id="newRoomName" style="width:100%;padding:6px;"><br><br>
+      <div id="studentList" style="max-height:200px;overflow-y:auto;border:1px solid #ccc;padding:6px;"></div><br>
+      <button id="confirmCreateRoom">Create</button>
+      <button id="cancelCreateRoom">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -61,51 +84,34 @@
       appId: "1:527558016185:web:33473cb2098cad5e812f68",
       measurementId: "G-Z6ENYE5ES8"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
     // ======= Allowed Users =======
     const students = [
-      { name: "Brycen Gallardo" },
-      { name: "Liam Pendergast" },
-      { name: "Samuel Prather" },
-      { name: "Zayden Tenney" },
-      { name: "Ammon Rhoten" },
-      { name: "Arthur Hagge" },
-      { name: "Caleb Clark" },
-      { name: "Charlotte Young" },
-      { name: "David Graham" },
-      { name: "Easton Aker" },
-      { name: "Elijah Conti" },
-      { name: "Emelia Hulse" },
-      { name: "Ethan Hawkins" },
-      { name: "Fox Eisinger" },
-      { name: "Hans Holland" },
-      { name: "Jackson Holcombe" },
-      { name: "Joseph Brown" },
-      { name: "Kate Russell" },
-      { name: "Leah Wilson" },
-      { name: "Lincoln LaMarr" },
-      { name: "Spencer Nielson" },
-      { name: "Torin Castle" },
-      { name: "Victor Peters" }
+      { name: "Brycen Gallardo" }, { name: "Liam Pendergast" }, { name: "Samuel Prather" },
+      { name: "Zayden Tenney" }, { name: "Ammon Rhoten" }, { name: "Arthur Hagge" },
+      { name: "Caleb Clark" }, { name: "Charlotte Young" }, { name: "David Graham" },
+      { name: "Easton Aker" }, { name: "Elijah Conti" }, { name: "Emelia Hulse" },
+      { name: "Ethan Hawkins" }, { name: "Fox Eisinger" }, { name: "Hans Holland" },
+      { name: "Jackson Holcombe" }, { name: "Joseph Brown" }, { name: "Kate Russell" },
+      { name: "Leah Wilson" }, { name: "Lincoln LaMarr" }, { name: "Spencer Nielson" },
+      { name: "Torin Castle" }, { name: "Victor Peters" }
     ];
 
-    // Managers (also students)
-    const managers = [
-      "Brycen Gallardo", "Liam Pendergast", "Samuel Prather", "Zayden Tenney"
-    ];
+    const managers = ["Brycen Gallardo", "Liam Pendergast", "Samuel Prather", "Zayden Tenney"];
 
-    const CLASS_PASSWORD = "STEAM2024"; // Shared password (change this!)
+    // ======= Passwords =======
+    const CLASS_PASSWORD = "STEAM2024";      // For students
+    const MANAGER_PASSWORD = "STEAM2024";  // For managers
 
     // ======= UI Elements =======
     const loginScreen = document.getElementById("loginScreen");
+    const chatUI = document.getElementById("chatUI");
     const usernameInput = document.getElementById("username");
     const passwordInput = document.getElementById("password");
     const loginBtn = document.getElementById("loginBtn");
     const loginError = document.getElementById("loginError");
-    const chatUI = document.getElementById("chatUI");
     const currentUserEl = document.getElementById("currentUser");
     const logoutBtn = document.getElementById("logoutBtn");
     const roomSelect = document.getElementById("roomSelect");
@@ -114,6 +120,13 @@
     const roomTitle = document.getElementById("roomTitle");
     const messageInput = document.getElementById("messageInput");
     const sendBtn = document.getElementById("sendBtn");
+
+    // Modal elements
+    const modalOverlay = document.getElementById("modalOverlay");
+    const newRoomName = document.getElementById("newRoomName");
+    const studentList = document.getElementById("studentList");
+    const confirmCreateRoom = document.getElementById("confirmCreateRoom");
+    const cancelCreateRoom = document.getElementById("cancelCreateRoom");
 
     let currentUser = null;
     let currentRoomId = null;
@@ -125,7 +138,6 @@
       loginScreen.style.display = "block";
       chatUI.style.display = "none";
     }
-
     function showChat() {
       loginScreen.style.display = "none";
       chatUI.style.display = "block";
@@ -139,21 +151,29 @@
         currentUserEl.textContent = currentUser + (isManager ? " (Manager)" : "");
         showChat();
         ensurePublicRoom().then(loadRooms);
-      } else {
-        showLogin();
-      }
+      } else showLogin();
     }
 
     loginBtn.onclick = () => {
       const name = usernameInput.value.trim();
       const pass = passwordInput.value.trim();
       if (!name || !pass) return loginError.textContent = "Please enter both fields.";
-      const allowed = students.map(s => s.name.toLowerCase());
-      if (!allowed.includes(name.toLowerCase())) return loginError.textContent = "Name not recognized.";
-      if (pass !== CLASS_PASSWORD) return loginError.textContent = "Incorrect password.";
+
+      const allowedNames = students.map(s => s.name.toLowerCase());
+      if (!allowedNames.includes(name.toLowerCase()))
+        return loginError.textContent = "Name not recognized.";
+
+      const isInManagers = managers.includes(name);
+
+      if (isInManagers && pass !== MANAGER_PASSWORD)
+        return loginError.textContent = "Manager password required.";
+      if (!isInManagers && pass !== CLASS_PASSWORD)
+        return loginError.textContent = "Incorrect class password.";
+
+      // Save login
       localStorage.setItem("steamUser", name);
       currentUser = name;
-      isManager = managers.includes(name);
+      isManager = isInManagers;
       currentUserEl.textContent = currentUser + (isManager ? " (Manager)" : "");
       usernameInput.value = passwordInput.value = "";
       loginError.textContent = "";
@@ -168,7 +188,7 @@
       showLogin();
     };
 
-    // ======= Firebase Chat Logic =======
+    // ======= Firebase Logic =======
     async function ensurePublicRoom() {
       const q = await db.collection("rooms").where("isPublic", "==", true).limit(1).get();
       if (q.empty) {
@@ -187,6 +207,7 @@
       const snapshot = isManager
         ? await db.collection("rooms").orderBy("createdAt").get()
         : await db.collection("rooms").where("members", "array-contains", currentUser).get();
+
       snapshot.forEach(doc => {
         const data = doc.data();
         const opt = document.createElement("option");
@@ -194,6 +215,7 @@
         opt.textContent = data.name + (data.isPublic ? " (Public)" : "");
         roomSelect.appendChild(opt);
       });
+
       if (roomSelect.options.length > 0) {
         currentRoomId = roomSelect.options[0].value;
         const doc = await db.collection("rooms").doc(currentRoomId).get();
@@ -248,13 +270,11 @@
       messageInput.value = "";
     };
 
+    // ======= Private Room Creation (Embed Safe) =======
     createRoomBtn.onclick = () => {
-      const roomName = prompt("Enter private room name:");
-      if (!roomName) return;
-      const container = document.createElement("div");
-      container.id = "createRoomUI";
-      container.innerHTML = "<h4>Select students to invite:</h4>";
-      const list = document.createElement("div");
+      modalOverlay.style.display = "flex";
+      newRoomName.value = "";
+      studentList.innerHTML = "";
       students.forEach(s => {
         const label = document.createElement("label");
         label.style.display = "block";
@@ -263,37 +283,33 @@
         cb.value = s.name;
         label.appendChild(cb);
         label.appendChild(document.createTextNode(" " + s.name));
-        list.appendChild(label);
+        studentList.appendChild(label);
       });
-      container.appendChild(list);
-      const createBtn = document.createElement("button");
-      createBtn.textContent = "Create";
-      const cancelBtn = document.createElement("button");
-      cancelBtn.textContent = "Cancel";
-      container.appendChild(createBtn);
-      container.appendChild(cancelBtn);
-      document.body.appendChild(container);
-      cancelBtn.onclick = () => document.body.removeChild(container);
-      createBtn.onclick = async () => {
-        const selected = Array.from(container.querySelectorAll("input:checked")).map(cb => cb.value);
-        if (!selected.includes(currentUser)) selected.push(currentUser);
-        if (selected.length === 0) return alert("Select at least one member.");
-        await db.collection("rooms").add({
-          name: roomName,
-          members: selected,
-          isPublic: false,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        document.body.removeChild(container);
-        loadRooms();
-      };
     };
 
+    cancelCreateRoom.onclick = () => { modalOverlay.style.display = "none"; };
+
+    confirmCreateRoom.onclick = async () => {
+      const roomName = newRoomName.value.trim();
+      if (!roomName) return alert("Please enter a room name.");
+      const selected = Array.from(studentList.querySelectorAll("input:checked")).map(cb => cb.value);
+      if (!selected.includes(currentUser)) selected.push(currentUser);
+      if (selected.length === 0) return alert("Select at least one member.");
+      await db.collection("rooms").add({
+        name: roomName,
+        members: selected,
+        isPublic: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      modalOverlay.style.display = "none";
+      loadRooms();
+    };
+
+    // ======= Helpers =======
     function escapeHtml(t) {
       return t.replace(/[&<"'>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
     }
 
-    // Run check
     checkLocalLogin();
   </script>
 </body>
