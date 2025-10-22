@@ -5,14 +5,12 @@
   <title>STEAM Class Chat (Secure Login)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; max-width: 900px; }
-    #loginScreen, #chatUI { display:none; }
+    #loginScreen, #chatUI, #setupPasswordUI, #changePasswordUI, #resetPasswordUI { display:none; }
     #chatBox { height: 420px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background:#fafafa; }
     .message { margin-bottom:8px; padding:4px 6px; border-radius:4px; }
     .own { background:#e6f7ff; }
     .meta { color:gray; font-size:0.85em; margin-left:8px; }
     .smallBtn { padding:4px 6px; font-size:0.85em; margin-left:6px; }
-
-    /* Modal for private room creation */
     #modalOverlay {
       position: fixed; top:0; left:0; width:100%; height:100%;
       background: rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center;
@@ -29,17 +27,47 @@
   <!-- ======== Login Screen ======== -->
   <div id="loginScreen">
     <h3>Sign In</h3>
-    <p>Enter your full name and class password.</p>
+    <p>Enter your name and password.</p>
     <input id="username" placeholder="First Last" style="width:60%;padding:8px;"><br><br>
-    <input id="password" type="password" placeholder="Class Password" style="width:60%;padding:8px;"><br><br>
+    <input id="password" type="password" placeholder="Password" style="width:60%;padding:8px;"><br><br>
     <button id="loginBtn">Login</button>
+    <button id="forgotBtn" style="margin-left:10px;">Forgot Password?</button>
     <p id="loginError" style="color:red;"></p>
+  </div>
+
+  <!-- ======== Create Password Screen ======== -->
+  <div id="setupPasswordUI">
+    <h3>Create a New Password</h3>
+    <p>Welcome! Set a password for your account.</p>
+    <input id="newPassword" type="password" placeholder="Enter new password" style="width:60%;padding:8px;"><br><br>
+    <button id="saveNewPasswordBtn">Save Password</button>
+    <p id="setupError" style="color:red;"></p>
+  </div>
+
+  <!-- ======== Change Password ======== -->
+  <div id="changePasswordUI">
+    <h3>Change Your Password</h3>
+    <p>Enter your current password and new password.</p>
+    <input id="currentPass" type="password" placeholder="Current password" style="width:60%;padding:8px;"><br><br>
+    <input id="newPassChange" type="password" placeholder="New password" style="width:60%;padding:8px;"><br><br>
+    <button id="changePassBtn">Change Password</button>
+    <button id="cancelChangeBtn">Cancel</button>
+    <p id="changeError" style="color:red;"></p>
   </div>
 
   <!-- ======== Chat UI ======== -->
   <div id="chatUI">
     <p>Signed in as: <strong id="currentUser"></strong>
-      <button id="logoutBtn" class="smallBtn">Logout</button></p>
+      <button id="logoutBtn" class="smallBtn">Logout</button>
+      <button id="changePasswordLink" class="smallBtn">Change Password</button>
+    </p>
+
+    <div id="resetPasswordUI">
+      <h4>Manager Controls</h4>
+      <input id="resetUser" placeholder="User to reset" style="width:50%;padding:6px;">
+      <button id="resetPassBtn">Reset User Password</button>
+      <p id="resetMsg" style="color:green;"></p>
+    </div>
 
     <div id="rooms">
       <h3>Your Rooms</h3>
@@ -74,243 +102,264 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // ======= Firebase Config =======
-    const firebaseConfig = {
-      apiKey: "AIzaSyC3q0jqh2zfzKXwHyA6wjPe_dL5t5CGds0",
-      authDomain: "steam-chat-82c10.firebaseapp.com",
-      projectId: "steam-chat-82c10",
-      storageBucket: "steam-chat-82c10.firebasestorage.app",
-      messagingSenderId: "527558016185",
-      appId: "1:527558016185:web:33473cb2098cad5e812f68",
-      measurementId: "G-Z6ENYE5ES8"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+  // ======= Firebase Config =======
+  const firebaseConfig = {
+    apiKey: "AIzaSyC3q0jqh2zfzKXwHyA6wjPe_dL5t5CGds0",
+    authDomain: "steam-chat-82c10.firebaseapp.com",
+    projectId: "steam-chat-82c10",
+    storageBucket: "steam-chat-82c10.firebasestorage.app",
+    messagingSenderId: "527558016185",
+    appId: "1:527558016185:web:33473cb2098cad5e812f68",
+    measurementId: "G-Z6ENYE5ES8"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    // ======= Allowed Users =======
-    const students = [
-      { name: "Brycen Gallardo" }, { name: "Liam Pendergast" }, { name: "Samuel Prather" },
-      { name: "Zayden Tenney" }, { name: "Ammon Rhoten" }, { name: "Arthur Hagge" },
-      { name: "Caleb Clark" }, { name: "Charlotte Young" }, { name: "David Graham" },
-      { name: "Easton Aker" }, { name: "Elijah Conti" }, { name: "Emelia Hulse" },
-      { name: "Ethan Hawkins" }, { name: "Fox Eisinger" }, { name: "Hans Holland" },
-      { name: "Jackson Holcombe" }, { name: "Joseph Brown" }, { name: "Kate Russell" },
-      { name: "Leah Wilson" }, { name: "Lincoln LaMarr" }, { name: "Spencer Nielson" },
-      { name: "Torin Castle" }, { name: "Victor Peters" }
-    ];
+  // ======= User Lists =======
+  const students = [
+    { name: "Brycen Gallardo" }, { name: "Liam Pendergast" }, { name: "Samuel Prather" },
+    { name: "Zayden Tenney" }, { name: "Ammon Rhoten" }, { name: "Arthur Hagge" },
+    { name: "Caleb Clark" }, { name: "Charlotte Young" }, { name: "David Graham" },
+    { name: "Easton Aker" }, { name: "Elijah Conti" }, { name: "Emelia Hulse" },
+    { name: "Ethan Hawkins" }, { name: "Fox Eisinger" }, { name: "Hans Holland" },
+    { name: "Jackson Holcombe" }, { name: "Joseph Brown" }, { name: "Kate Russell" },
+    { name: "Leah Wilson" }, { name: "Lincoln LaMarr" }, { name: "Spencer Nielson" },
+    { name: "Torin Castle" }, { name: "Victor Peters" }
+  ];
+  const managers = ["Brycen Gallardo", "Liam Pendergast", "Samuel Prather", "Zayden Tenney"];
 
-    const managers = ["Brycen Gallardo", "Liam Pendergast", "Samuel Prather", "Zayden Tenney"];
+  // ======= UI Elements =======
+  const loginScreen = document.getElementById("loginScreen");
+  const setupPasswordUI = document.getElementById("setupPasswordUI");
+  const changePasswordUI = document.getElementById("changePasswordUI");
+  const resetPasswordUI = document.getElementById("resetPasswordUI");
+  const chatUI = document.getElementById("chatUI");
+  const usernameInput = document.getElementById("username");
+  const passwordInput = document.getElementById("password");
+  const loginBtn = document.getElementById("loginBtn");
+  const forgotBtn = document.getElementById("forgotBtn");
+  const loginError = document.getElementById("loginError");
+  const newPasswordInput = document.getElementById("newPassword");
+  const saveNewPasswordBtn = document.getElementById("saveNewPasswordBtn");
+  const setupError = document.getElementById("setupError");
+  const currentUserEl = document.getElementById("currentUser");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const changePasswordLink = document.getElementById("changePasswordLink");
+  const currentPass = document.getElementById("currentPass");
+  const newPassChange = document.getElementById("newPassChange");
+  const changePassBtn = document.getElementById("changePassBtn");
+  const cancelChangeBtn = document.getElementById("cancelChangeBtn");
+  const changeError = document.getElementById("changeError");
+  const resetUserInput = document.getElementById("resetUser");
+  const resetPassBtn = document.getElementById("resetPassBtn");
+  const resetMsg = document.getElementById("resetMsg");
 
-    // ======= Passwords =======
-    const CLASS_PASSWORD = "STEAM2024";      // For students
-    const MANAGER_PASSWORD = "STEAM2024";  // For managers
+  const roomSelect = document.getElementById("roomSelect");
+  const createRoomBtn = document.getElementById("createRoomBtn");
+  const chatBox = document.getElementById("chatBox");
+  const roomTitle = document.getElementById("roomTitle");
+  const messageInput = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const modalOverlay = document.getElementById("modalOverlay");
+  const newRoomName = document.getElementById("newRoomName");
+  const studentList = document.getElementById("studentList");
+  const confirmCreateRoom = document.getElementById("confirmCreateRoom");
+  const cancelCreateRoom = document.getElementById("cancelCreateRoom");
 
-    // ======= UI Elements =======
-    const loginScreen = document.getElementById("loginScreen");
-    const chatUI = document.getElementById("chatUI");
-    const usernameInput = document.getElementById("username");
-    const passwordInput = document.getElementById("password");
-    const loginBtn = document.getElementById("loginBtn");
-    const loginError = document.getElementById("loginError");
-    const currentUserEl = document.getElementById("currentUser");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const roomSelect = document.getElementById("roomSelect");
-    const createRoomBtn = document.getElementById("createRoomBtn");
-    const chatBox = document.getElementById("chatBox");
-    const roomTitle = document.getElementById("roomTitle");
-    const messageInput = document.getElementById("messageInput");
-    const sendBtn = document.getElementById("sendBtn");
+  let currentUser = null;
+  let isManager = false;
+  let currentRoomId = null;
+  let unsubscribeMessages = null;
 
-    // Modal elements
-    const modalOverlay = document.getElementById("modalOverlay");
-    const newRoomName = document.getElementById("newRoomName");
-    const studentList = document.getElementById("studentList");
-    const confirmCreateRoom = document.getElementById("confirmCreateRoom");
-    const cancelCreateRoom = document.getElementById("cancelCreateRoom");
+  // ======= Show/Hide Functions =======
+  function showLogin(){ loginScreen.style.display="block"; setupPasswordUI.style.display=chatUI.style.display=changePasswordUI.style.display="none"; }
+  function showChat(){ loginScreen.style.display=setupPasswordUI.style.display=changePasswordUI.style.display="none"; chatUI.style.display="block"; if(isManager) resetPasswordUI.style.display="block"; else resetPasswordUI.style.display="none"; }
+  function showSetup(){ loginScreen.style.display=chatUI.style.display=changePasswordUI.style.display="none"; setupPasswordUI.style.display="block"; }
+  function showChange(){ chatUI.style.display="none"; changePasswordUI.style.display="block"; }
 
-    let currentUser = null;
-    let currentRoomId = null;
-    let unsubscribeMessages = null;
-    let isManager = false;
+  // ======= Forgot Password =======
+  forgotBtn.onclick = ()=>window.open("https://forms.gle/Lreooph31a8UDzoMA","_blank");
 
-    // ======= Login Logic =======
-    function showLogin() {
-      loginScreen.style.display = "block";
-      chatUI.style.display = "none";
-    }
-    function showChat() {
-      loginScreen.style.display = "none";
-      chatUI.style.display = "block";
-    }
+  // ======= Login =======
+  loginBtn.onclick = async ()=>{
+    const name = usernameInput.value.trim();
+    const pass = passwordInput.value.trim();
+    if(!name || !pass) return loginError.textContent="Enter both fields.";
+    const allowed = students.map(s=>s.name.toLowerCase());
+    if(!allowed.includes(name.toLowerCase())) return loginError.textContent="Name not recognized.";
 
-    function checkLocalLogin() {
-      const saved = localStorage.getItem("steamUser");
-      if (saved) {
-        currentUser = saved;
-        isManager = managers.includes(currentUser);
-        currentUserEl.textContent = currentUser + (isManager ? " (Manager)" : "");
-        showChat();
-        ensurePublicRoom().then(loadRooms);
-      } else showLogin();
-    }
+    const isInManagers = managers.includes(name);
+    isManager = isInManagers;
 
-    loginBtn.onclick = () => {
-      const name = usernameInput.value.trim();
-      const pass = passwordInput.value.trim();
-      if (!name || !pass) return loginError.textContent = "Please enter both fields.";
-
-      const allowedNames = students.map(s => s.name.toLowerCase());
-      if (!allowedNames.includes(name.toLowerCase()))
-        return loginError.textContent = "Name not recognized.";
-
-      const isInManagers = managers.includes(name);
-
-      if (isInManagers && pass !== MANAGER_PASSWORD)
-        return loginError.textContent = "Manager password required.";
-      if (!isInManagers && pass !== CLASS_PASSWORD)
-        return loginError.textContent = "Incorrect class password.";
-
-      // Save login
-      localStorage.setItem("steamUser", name);
+    const userDoc = db.collection("userPasswords").doc(name);
+    const snap = await userDoc.get();
+    if(!snap.exists){
+      // No password yet → create
       currentUser = name;
-      isManager = isInManagers;
-      currentUserEl.textContent = currentUser + (isManager ? " (Manager)" : "");
-      usernameInput.value = passwordInput.value = "";
-      loginError.textContent = "";
-      showChat();
-      ensurePublicRoom().then(loadRooms);
-    };
-
-    logoutBtn.onclick = () => {
-      localStorage.removeItem("steamUser");
-      if (unsubscribeMessages) unsubscribeMessages();
-      currentUser = null;
-      showLogin();
-    };
-
-    // ======= Firebase Logic =======
-    async function ensurePublicRoom() {
-      const q = await db.collection("rooms").where("isPublic", "==", true).limit(1).get();
-      if (q.empty) {
-        const all = students.map(s => s.name);
-        await db.collection("rooms").add({
-          name: "Public Room",
-          members: all,
-          isPublic: true,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
+      showSetup();
+      return;
+    }
+    const data = snap.data();
+    if(data.password !== pass){
+      return loginError.textContent="Incorrect password.";
     }
 
-    async function loadRooms() {
-      roomSelect.innerHTML = "";
-      const snapshot = isManager
-        ? await db.collection("rooms").orderBy("createdAt").get()
-        : await db.collection("rooms").where("members", "array-contains", currentUser).get();
+    currentUser = name;
+    localStorage.setItem("steamUser", name);
+    currentUserEl.textContent = currentUser + (isManager?" (Manager)":"");
+    showChat();
+    ensurePublicRoom().then(loadRooms);
+  };
 
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const opt = document.createElement("option");
-        opt.value = doc.id;
-        opt.textContent = data.name + (data.isPublic ? " (Public)" : "");
-        roomSelect.appendChild(opt);
-      });
+  saveNewPasswordBtn.onclick = async ()=>{
+    const pass = newPasswordInput.value.trim();
+    if(pass.length<3) return setupError.textContent="Password too short.";
+    await db.collection("userPasswords").doc(currentUser).set({password:pass});
+    localStorage.setItem("steamUser", currentUser);
+    setupError.textContent="";
+    showChat();
+    ensurePublicRoom().then(loadRooms);
+  };
 
-      if (roomSelect.options.length > 0) {
-        currentRoomId = roomSelect.options[0].value;
-        const doc = await db.collection("rooms").doc(currentRoomId).get();
-        roomTitle.textContent = doc.data().name;
-        if (unsubscribeMessages) unsubscribeMessages();
-        listenMessages(currentRoomId);
-      }
-    }
+  // ======= Change Password =======
+  changePasswordLink.onclick = ()=>{ showChange(); };
+  cancelChangeBtn.onclick = ()=>{ showChat(); };
+  changePassBtn.onclick = async ()=>{
+    const curr=currentPass.value.trim(), np=newPassChange.value.trim();
+    if(!curr||!np) return changeError.textContent="Fill all fields.";
+    const doc=await db.collection("userPasswords").doc(currentUser).get();
+    if(!doc.exists||doc.data().password!==curr) return changeError.textContent="Current password incorrect.";
+    await db.collection("userPasswords").doc(currentUser).set({password:np});
+    changeError.textContent="Password changed successfully!";
+    setTimeout(()=>showChat(),1000);
+  };
 
-    roomSelect.onchange = async () => {
-      currentRoomId = roomSelect.value;
-      const doc = await db.collection("rooms").doc(currentRoomId).get();
-      roomTitle.textContent = doc.data().name;
-      if (unsubscribeMessages) unsubscribeMessages();
-      listenMessages(currentRoomId);
-    };
+  // ======= Manager Password Reset =======
+  resetPassBtn.onclick = async ()=>{
+    const u=resetUserInput.value.trim();
+    if(!u) return;
+    await db.collection("userPasswords").doc(u).delete().catch(()=>{});
+    resetMsg.textContent="Password reset for "+u;
+    setTimeout(()=>resetMsg.textContent="",3000);
+  };
 
-    function listenMessages(roomId) {
-      unsubscribeMessages = db.collection("messages")
-        .where("roomId","==",roomId)
-        .orderBy("timestamp")
-        .onSnapshot(snapshot => {
-          chatBox.innerHTML = "";
-          snapshot.forEach(doc => {
-            const m = doc.data();
-            const div = document.createElement("div");
-            div.className = "message " + (m.sender === currentUser ? "own" : "");
-            const time = m.timestamp ? m.timestamp.toDate().toLocaleString() : "";
-            div.innerHTML = `<strong>${escapeHtml(m.sender)}</strong>: ${escapeHtml(m.text)} <span class="meta">${time}</span>`;
-            if (isManager) {
-              const del = document.createElement("button");
-              del.textContent = "Delete";
-              del.className = "smallBtn";
-              del.onclick = () => db.collection("messages").doc(doc.id).delete();
-              div.appendChild(del);
-            }
-            chatBox.appendChild(div);
-          });
-          chatBox.scrollTop = chatBox.scrollHeight;
-        });
-    }
+  // ======= Logout =======
+  logoutBtn.onclick = ()=>{
+    localStorage.removeItem("steamUser");
+    if(unsubscribeMessages) unsubscribeMessages();
+    currentUser=null;
+    showLogin();
+  };
 
-    sendBtn.onclick = async () => {
-      const text = messageInput.value.trim();
-      if (!text || !currentRoomId) return;
-      await db.collection("messages").add({
-        roomId: currentRoomId,
-        sender: currentUser,
-        text,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      messageInput.value = "";
-    };
+  // ======= Check Local Login =======
+  async function checkLocalLogin(){
+    const saved=localStorage.getItem("steamUser");
+    if(!saved) return showLogin();
+    const snap=await db.collection("userPasswords").doc(saved).get();
+    if(!snap.exists){ currentUser=saved; showSetup(); return; }
+    currentUser=saved;
+    isManager=managers.includes(saved);
+    currentUserEl.textContent=currentUser+(isManager?" (Manager)":"");
+    showChat();
+    ensurePublicRoom().then(loadRooms);
+  }
 
-    // ======= Private Room Creation (Embed Safe) =======
-    createRoomBtn.onclick = () => {
-      modalOverlay.style.display = "flex";
-      newRoomName.value = "";
-      studentList.innerHTML = "";
-      students.forEach(s => {
-        const label = document.createElement("label");
-        label.style.display = "block";
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.value = s.name;
-        label.appendChild(cb);
-        label.appendChild(document.createTextNode(" " + s.name));
-        studentList.appendChild(label);
-      });
-    };
-
-    cancelCreateRoom.onclick = () => { modalOverlay.style.display = "none"; };
-
-    confirmCreateRoom.onclick = async () => {
-      const roomName = newRoomName.value.trim();
-      if (!roomName) return alert("Please enter a room name.");
-      const selected = Array.from(studentList.querySelectorAll("input:checked")).map(cb => cb.value);
-      if (!selected.includes(currentUser)) selected.push(currentUser);
-      if (selected.length === 0) return alert("Select at least one member.");
+  // ======= Chat Logic (same as before) =======
+  async function ensurePublicRoom(){
+    const q=await db.collection("rooms").where("isPublic","==",true).limit(1).get();
+    if(q.empty){
+      const all=students.map(s=>s.name);
       await db.collection("rooms").add({
-        name: roomName,
-        members: selected,
-        isPublic: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        name:"Public Room",members:all,isPublic:true,createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
-      modalOverlay.style.display = "none";
-      loadRooms();
-    };
-
-    // ======= Helpers =======
-    function escapeHtml(t) {
-      return t.replace(/[&<"'>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
     }
+  }
 
-    checkLocalLogin();
+  async function loadRooms(){
+    roomSelect.innerHTML="";
+    const snapshot=isManager?await db.collection("rooms").orderBy("createdAt").get()
+    :await db.collection("rooms").where("members","array-contains",currentUser).get();
+    snapshot.forEach(doc=>{
+      const data=doc.data();
+      const opt=document.createElement("option");
+      opt.value=doc.id; opt.textContent=data.name+(data.isPublic?" (Public)":"");
+      roomSelect.appendChild(opt);
+    });
+    if(roomSelect.options.length>0){
+      currentRoomId=roomSelect.options[0].value;
+      const doc=await db.collection("rooms").doc(currentRoomId).get();
+      roomTitle.textContent=doc.data().name;
+      if(unsubscribeMessages) unsubscribeMessages();
+      listenMessages(currentRoomId);
+    }
+  }
+
+  roomSelect.onchange=async()=>{
+    currentRoomId=roomSelect.value;
+    const doc=await db.collection("rooms").doc(currentRoomId).get();
+    roomTitle.textContent=doc.data().name;
+    if(unsubscribeMessages) unsubscribeMessages();
+    listenMessages(currentRoomId);
+  };
+
+  function listenMessages(roomId){
+    unsubscribeMessages=db.collection("messages").where("roomId","==",roomId).orderBy("timestamp")
+    .onSnapshot(snapshot=>{
+      chatBox.innerHTML="";
+      snapshot.forEach(doc=>{
+        const m=doc.data();
+        const div=document.createElement("div");
+        div.className="message "+(m.sender===currentUser?"own":"");
+        const time=m.timestamp?m.timestamp.toDate().toLocaleString():"";
+        div.innerHTML=`<strong>${escapeHtml(m.sender)}</strong>: ${escapeHtml(m.text)} <span class="meta">${time}</span>`;
+        if(isManager){
+          const del=document.createElement("button");
+          del.textContent="Delete"; del.className="smallBtn";
+          del.onclick=()=>db.collection("messages").doc(doc.id).delete();
+          div.appendChild(del);
+        }
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop=chatBox.scrollHeight;
+    });
+  }
+
+  sendBtn.onclick=async()=>{
+    const text=messageInput.value.trim();
+    if(!text||!currentRoomId)return;
+    await db.collection("messages").add({
+      roomId:currentRoomId,sender:currentUser,text,
+      timestamp:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    messageInput.value="";
+  };
+
+  // ======= Private Room Creation =======
+  createRoomBtn.onclick=()=>{
+    modalOverlay.style.display="flex";
+    newRoomName.value=""; studentList.innerHTML="";
+    students.forEach(s=>{
+      const label=document.createElement("label");
+      label.style.display="block";
+      const cb=document.createElement("input"); cb.type="checkbox"; cb.value=s.name;
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(" "+s.name));
+      studentList.appendChild(label);
+    });
+  };
+  cancelCreateRoom.onclick=()=>{modalOverlay.style.display="none";};
+  confirmCreateRoom.onclick=async()=>{
+    const name=newRoomName.value.trim();
+    if(!name)return alert("Enter room name.");
+    const selected=Array.from(studentList.querySelectorAll("input:checked")).map(cb=>cb.value);
+    if(!selected.includes(currentUser))selected.push(currentUser);
+    await db.collection("rooms").add({name, members:selected, isPublic:false, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    modalOverlay.style.display="none"; loadRooms();
+  };
+
+  function escapeHtml(t){return t.replace(/[&<"'>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+
+  checkLocalLogin();
   </script>
 </body>
 </html>
