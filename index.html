@@ -290,7 +290,11 @@
   // ===== Initialize Login etc (shortened for space) =====
   // ... (Keep all your existing login, password, and setup functions exactly as before)
   // Just insert updateUnreadCounts() after loadRooms() wherever it's called.
-
+// ===== Show login screen on load =====
+window.onload = function() {
+  document.getElementById("loginScreen").style.display = "block";
+};
   </script>
 </body>
 </html>
+
